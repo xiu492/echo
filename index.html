@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弦外之音 | 智能跳转</title>
+    <style>
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .loader {
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="loader">⟡ 检测设备中，即将进入弦外之音 ⟡</div>
+    <script>
+        (function() {
+            // 判断是否为移动设备（宽屏或触摸能力）
+            const isMobile = () => {
+                // 方式1：基于屏幕宽度（竖屏手机通常宽度 < 768px）
+                // 方式2：基于用户代理（更可靠，但可能被伪造）
+                const ua = navigator.userAgent.toLowerCase();
+                const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'windows phone', 'mobile'];
+                const isMobileUA = mobileKeywords.some(keyword => ua.includes(keyword));
+                // 同时检查屏幕宽度，如果屏幕宽度小于768px且高度大于宽度（竖屏），也可判定为手机
+                const isMobileWidth = window.innerWidth <= 768 && window.innerHeight > window.innerWidth;
+                return isMobileUA || isMobileWidth;
+            };
+            
+            const target = isMobile() ? 'index_m.html' : 'index_pc.html';
+            // 使用 replace 避免在历史记录中留下跳转前页面
+            window.location.replace(target);
+        })();
+    </script>
+</body>
+</html>

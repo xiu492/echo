@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>弦外之音 | 卡拉比-丘随机流形 · 混沌共鸣实验室</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            user-select: none;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+
+        #top-zone {
+            flex: 2;
+            position: relative;
+            border-bottom: 1px solid #222;
+            display: flex;
+            min-height: 200px;
+        }
+
+        #canvas-3d {
+            flex: 1;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        #right-panel {
+            width: 180px;
+            background: #050505;
+            border-left: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .panel-title {
+            font-size: 9px;
+            color: #0ff;
+            margin: 5px 0 3px 0;
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+
+        #canvas-cloud,
+        #canvas-entropy {
+            width: 100%;
+            background: #080808;
+            border: 1px solid #333;
+            box-sizing: border-box;
+        }
+
+        #canvas-cloud {
+            height: 110px;
+            margin-bottom: 8px;
+        }
+
+        #canvas-entropy {
+            height: 110px;
+        }
+
+        #bottom-zone {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            box-sizing: border-box;
+            background: #050505;
+            min-height: 140px;
+        }
+
+        #waveform-container {
+            flex: 1;
+            position: relative;
+            border: 1px solid #333;
+            margin-bottom: 5px;
+            background: #050505;
+            min-height: 80px;
+        }
+
+        #canvas-wave {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #050505;
+        }
+
+        #hex-stream {
+            font-size: 12px;
+            height: 1.5em;
+            overflow: hidden;
+            white-space: nowrap;
+            color: #0f0;
+            opacity: 0.8;
+            border-top: 1px solid #222;
+            padding-top: 5px;
+            flex-shrink: 0;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            cursor: pointer;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        #overlay.hidden {
+            display: none;
+        }
+
+        .label {
+            position: absolute;
+            font-size: 10px;
+            color: #888;
+            pointer-events: none;
+        }
+
+        #info {
+            top: 10px;
+            left: 10px;
+            color: #ff0;
+            font-size: 11px;
+            white-space: pre;
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 5px;
+            border-radius: 3px;
+            pointer-events: none;
+            max-height: 80%;
+            overflow-y: auto;
+            z-index: 20;
+        }
+
+        #footer {
+            background: #000;
+            height: 22px;
+            line-height: 22px;
+            text-align: center;
+            font-size: 9px;
+            color: #444;
+            border-top: 1px solid #222;
+            flex-shrink: 0;
+        }
+
+        #footer a {
+            color: #666;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="overlay">点击屏幕 开启“弦外之音”回响</div>
+
+<div id="container">
+    <div id="top-zone">
+        <canvas id="canvas-3d"></canvas>
+        <div id="right-panel">
+            <div class="panel-title">ALETHEIA CLOUD (P-Space)</div>
+            <canvas id="canvas-cloud"></canvas>
+            <div class="panel-title" style="margin-top: 8px;">H-ENTROPY (Bits)</div>
+            <canvas id="canvas-entropy"></canvas>
+        </div>
+        <div id="info" class="label">11D MANIFOLD ECHO V1.0<br>STATUS: INITIALIZING...</div>
+    </div>
+
+    <div id="bottom-zone">
+        <div id="waveform-container">
+            <div class="label" style="top:2px; left:5px;">ECHO WAVEFORM</div>
+            <canvas id="canvas-wave"></canvas>
+        </div>
+        <div id="hex-stream">>>> INITIALIZING ALETHEIA ENGINE...</div>
+    </div>
+    <div id="footer">© 弦外之音 | 单击模型区域切换播放/暂停 | 拖拽旋转视角 | 双指缩放 | 网格颜色随粒子靠近变红 | 流形·随机卡拉比-丘族系</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+/**
+ * 弦外之音 (Extra-Vibrational Echo) 增强版
+ * - 卡拉比-丘流形族系随机选择 (基于系统随机数)
+ * - 支持: 环形结变体(p,q变换) / 费马三次曲面近似 / 球谐扭曲流形
+ * - 完整保留混沌物理引擎、音频合成、后台运行、波纹扰动、熵可视化
+ * - 每次刷新页面将随机展示一种符合弦论美学的流形结构
+ * - 【优化】降低除球面调和流形外所有几何体的网格密度，提升性能与视觉清晰度
+ */
+
+// ========== 全局变量 ==========
+let audioCtx, oscillatorA, oscillatorB, gainNode, analyser;
+let started = false;
+let paused = true;
+let entropyPoints = [];
+let entropyHistory = [];
+let lastHash = "0000000000000000";
+let waveBuffer = [];
+
+// 物理参数
+let posA = new THREE.Vector3(1, 0, 0), velA = new THREE.Vector3(0, 1.85, 0.35);
+let posB = new THREE.Vector3(1.001, 0, 0), velB = new THREE.Vector3(0, 1.85, 0.35);
+let effectiveT = 0;
+let gravityConst = -4.2;
+let cyStrength = 1.35;
+let memoryStrength = 0.08;
+let microPerturb = 0.0;
+
+// 流形呼吸
+let currentR = 1.6;
+const r0 = 1.6;
+const breathAmp = 0.08;
+const breathOmega = 0.5;
+
+const pathA = [], pathB = [];
+
+// 3D场景
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, (window.innerWidth - 180) / (window.innerHeight * 0.6), 0.1, 1000);
+camera.position.set(0, 0, 10);
+camera.lookAt(0, 0, 0);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas-3d'), antialias: true });
+renderer.setSize(window.innerWidth - 180, window.innerHeight * 0.6);
+
+// 轨迹线
+const lineMatA = new THREE.LineBasicMaterial({ color: 0x00ffff });
+const lineMatB = new THREE.LineBasicMaterial({ color: 0xff00ff });
+const geoA = new THREE.BufferGeometry(), geoB = new THREE.BufferGeometry();
+const lineA = new THREE.Line(geoA, lineMatA), lineB = new THREE.Line(geoB, lineMatB);
+scene.add(lineA); scene.add(lineB);
+
+// 流形网格 (占位，稍后随机生成)
+let manifoldMesh = null;
+let baseGeo = null;
+let originalPositions = null;
+let positionAttribute = null;
+let colorAttribute = null;
+let vertexCount = 0;
+
+// 记录当前流形类型名称
+let currentManifoldType = "Calabi-Yau (Initial)";
+
+// ========== 随机流形工厂 (网格密度已优化) ==========
+// 将几何体顶点归一化到平均半径 ≈ 1.6 (保证呼吸缩放视觉一致性)
+function normalizeGeometryToRadius(geometry, targetRadius = 1.6) {
+    const positions = geometry.attributes.position.array;
+    let sumLen = 0;
+    const cnt = positions.length / 3;
+    for (let i = 0; i < cnt; i++) {
+        const x = positions[i*3], y = positions[i*3+1], z = positions[i*3+2];
+        sumLen += Math.hypot(x, y, z);
+    }
+    const avgLen = sumLen / cnt;
+    if (avgLen === 0) return;
+    const scale = targetRadius / avgLen;
+    for (let i = 0; i < positions.length; i++) {
+        positions[i] *= scale;
+    }
+    geometry.computeVertexNormals(); // 更新法线 (虽然wireframe无所谓但保留)
+    return geometry;
+}
+
+// 1. 环形结变体 (p,q参数) - 统一使用低细分 (80,16)
+function createTorusKnotVariant(p, q) {
+    // tubularSegments: 80, radialSegments: 16 提供清晰线框且不密集
+    const geo = new THREE.TorusKnotGeometry(1.6, 0.4, 80, 16, p, q);
+    return geo;
+}
+
+// 2. 费马三次曲面近似 (球体细分降低为 64, 32)
+function createFermatCubicLike() {
+    const geo = new THREE.SphereGeometry(1.6, 64, 32);
+    const positions = geo.attributes.position.array;
+    for (let i = 0; i < positions.length / 3; i++) {
+        let x = positions[i*3], y = positions[i*3+1], z = positions[i*3+2];
+        const r0 = Math.hypot(x, y, z);
+        if (r0 < 0.01) continue;
+        // 费马型扭曲: 模拟三次曲面 x^3 + y^3 + z^3 + w^3 = 0 在三维投影的起伏
+        const theta = Math.acos(z / r0);
+        const phi = Math.atan2(y, x);
+        // 引入三次谐波与耦合项，营造卡拉比-丘风格的“褶皱”
+        const deform = 0.18 * Math.cos(3 * phi) * Math.sin(2 * theta) 
+                     + 0.12 * Math.sin(5 * theta) * Math.cos(2 * phi)
+                     + 0.07 * Math.sin(3 * phi) * Math.cos(3 * theta);
+        const newR = r0 * (1 + deform);
+        const scale = newR / r0;
+        positions[i*3] *= scale;
+        positions[i*3+1] *= scale;
+        positions[i*3+2] *= scale;
+    }
+    return geo;
+}
+
+// 3. 扭曲环面 (莫比乌斯风格，卡拉比-丘弦景观) - 降低细分至 (100,20)
+function createTwistedTorus() {
+    const geo = new THREE.TorusKnotGeometry(1.6, 0.45, 100, 20, 3, 4);
+    const positions = geo.attributes.position.array;
+    for (let i = 0; i < positions.length / 3; i++) {
+        let x = positions[i*3], y = positions[i*3+1], z = positions[i*3+2];
+        const r = Math.hypot(x, y, z);
+        if (r < 0.01) continue;
+        const theta = Math.atan2(y, x);
+        const phi = Math.acos(z / r);
+        const twist = 0.22 * Math.sin(5 * theta) * Math.cos(3 * phi);
+        const radFactor = 1 + twist;
+        positions[i*3] *= radFactor;
+        positions[i*3+1] *= radFactor;
+        positions[i*3+2] *= radFactor;
+    }
+    return geo;
+}
+
+// 4. 复杂环形结 (5,6) 高亏格视觉 - 降低细分至 (100,20)
+function createComplexKnot() {
+    return new THREE.TorusKnotGeometry(1.6, 0.38, 100, 20, 5, 6);
+}
+
+// 5. 球面调和流形 (保持原细分，中等密度，作为对比保留)
+function createHarmonicManifold() {
+    // 使用二级细分二十面体，顶点数约642，密度适中，不做降低
+    const geo = new THREE.IcosahedronGeometry(1.6, 2);
+    const positions = geo.attributes.position.array;
+    // 细分后顶点数量进行径向噪声
+    for (let i = 0; i < positions.length / 3; i++) {
+        let x = positions[i*3], y = positions[i*3+1], z = positions[i*3+2];
+        const r0 = Math.hypot(x, y, z);
+        if (r0 === 0) continue;
+        const theta = Math.acos(z / r0);
+        const phi = Math.atan2(y, x);
+        const harmonic = 0.14 * Math.sin(4 * theta) * Math.cos(3 * phi)
+                       + 0.09 * Math.sin(6 * phi) * Math.cos(2 * theta);
+        const newR = r0 * (1 + harmonic);
+        const scale = newR / r0;
+        positions[i*3] *= scale;
+        positions[i*3+1] *= scale;
+        positions[i*3+2] *= scale;
+    }
+    return geo;
+}
+
+// 随机选择几何体生成器
+function selectRandomManifold() {
+    const manifolds = [
+        { name: "Torus Knot (2,3) · 经典卡拉比-丘", generator: () => createTorusKnotVariant(2, 3) },
+        { name: "Torus Knot (3,7) · 弦景观结", generator: () => createTorusKnotVariant(3, 7) },
+        { name: "Torus Knot (5,4) · 五次扭结", generator: () => createTorusKnotVariant(5, 4) },
+        { name: "费马三次曲面近似 · Fermat Cubic", generator: createFermatCubicLike },
+        { name: "扭曲卡拉比-丘流形 · Twisted Torus", generator: createTwistedTorus },
+        { name: "高亏格环形结 (5,6) · 紧致化", generator: createComplexKnot },
+        { name: "球面调和流形 · Harmonic CY", generator: createHarmonicManifold },
+        { name: "Torus Knot (8,3) · 混沌共振", generator: () => createTorusKnotVariant(8, 3) }
+    ];
+    const idx = Math.floor(Math.random() * manifolds.length);
+    const selected = manifolds[idx];
+    currentManifoldType = selected.name;
+    console.log(`[弦外之音] 随机流形: ${currentManifoldType}`);
+    const geometry = selected.generator();
+    // 统一归一化到半径1.6范围，保证呼吸效果统一
+    normalizeGeometryToRadius(geometry, 1.6);
+    return geometry;
+}
+
+// 初始化/替换流形网格 (保留原有材质特性)
+function initManifoldWithRandomGeometry() {
+    if (manifoldMesh) scene.remove(manifoldMesh);
+    
+    baseGeo = selectRandomManifold();
+    // 为几何体添加颜色属性
+    const colorArray = new Float32Array(baseGeo.attributes.position.count * 3);
+    baseGeo.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+    for (let i = 0; i < baseGeo.attributes.position.count; i++) {
+        colorArray[i*3] = 1.0;
+        colorArray[i*3+1] = 1.0;
+        colorArray[i*3+2] = 0.0;
+    }
+    const meshMat = new THREE.MeshBasicMaterial({ vertexColors: true, wireframe: true });
+    manifoldMesh = new THREE.Mesh(baseGeo, meshMat);
+    scene.add(manifoldMesh);
+    
+    // 更新全局引用
+    positionAttribute = baseGeo.attributes.position;
+    vertexCount = positionAttribute.count;
+    colorAttribute = baseGeo.attributes.color;
+    // 保存原始顶点位置 (用于ripple扰动)
+    originalPositions = positionAttribute.array.slice();
+    
+    // 更新呼吸缩放基准: 由于几何已归一化半径≈1.6，直接使用原有呼吸逻辑
+    currentR = r0;
+    manifoldMesh.scale.setScalar(1.0);
+}
+
+// ========== 相机控制 (保留原功能) ==========
+const canvas3d = document.getElementById('canvas-3d');
+let isDragging = false;
+let lastTouchDist = 0;
+let lastMousePos = { x: 0, y: 0 };
+let cameraRotation = { theta: 0, phi: 0 };
+let targetZoom = 10;
+let currentZoom = 10;
+
+function updateCameraPosition() {
+    const x = currentZoom * Math.sin(cameraRotation.theta) * Math.cos(cameraRotation.phi);
+    const y = currentZoom * Math.sin(cameraRotation.phi);
+    const z = currentZoom * Math.cos(cameraRotation.theta) * Math.cos(cameraRotation.phi);
+    camera.position.set(x, y, z);
+    camera.lookAt(0, 0, 0);
+}
+
+function onPointerStart(e) {
+    e.preventDefault();
+    isDragging = true;
+    if (e.touches && e.touches.length === 1) {
+        lastMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else {
+        lastMousePos = { x: e.clientX, y: e.clientY };
+    }
+    window._dragStartTime = Date.now();
+    window._dragStartPos = { x: lastMousePos.x, y: lastMousePos.y };
+}
+
+function onPointerMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    let dx = 0, dy = 0;
+    if (e.touches && e.touches.length === 1) {
+        dx = e.touches[0].clientX - lastMousePos.x;
+        dy = e.touches[0].clientY - lastMousePos.y;
+        lastMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else {
+        dx = e.clientX - lastMousePos.x;
+        dy = e.clientY - lastMousePos.y;
+        lastMousePos = { x: e.clientX, y: e.clientY };
+    }
+    cameraRotation.theta += dx * 0.005;
+    cameraRotation.phi += dy * 0.005;
+    cameraRotation.phi = Math.min(Math.max(cameraRotation.phi, -Math.PI/2 + 0.1), Math.PI/2 - 0.1);
+    updateCameraPosition();
+}
+
+function onPointerEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    const duration = Date.now() - (window._dragStartTime || 0);
+    const startPos = window._dragStartPos || { x: 0, y: 0 };
+    let endX = 0, endY = 0;
+    if (e.changedTouches && e.changedTouches.length === 1) {
+        endX = e.changedTouches[0].clientX;
+        endY = e.changedTouches[0].clientY;
+    } else {
+        endX = e.clientX;
+        endY = e.clientY;
+    }
+    const distance = Math.hypot(endX - startPos.x, endY - startPos.y);
+    if (duration < 200 && distance < 5 && started) {
+        paused = !paused;
+    }
+    window._dragStartTime = null;
+    window._dragStartPos = null;
+}
+
+function onTouchStart(e) {
+    if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastTouchDist = Math.hypot(dx, dy);
+        e.preventDefault();
+    }
+}
+
+function onTouchMove(e) {
+    if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        if (lastTouchDist > 0) {
+            const delta = dist - lastTouchDist;
+            targetZoom = Math.min(Math.max(targetZoom - delta * 0.01, 3), 20);
+            currentZoom += (targetZoom - currentZoom) * 0.2;
+            updateCameraPosition();
+        }
+        lastTouchDist = dist;
+        e.preventDefault();
+    }
+}
+
+function onWheel(e) {
+    e.preventDefault();
+    targetZoom += e.deltaY * 0.01;
+    targetZoom = Math.min(Math.max(targetZoom, 3), 20);
+    currentZoom += (targetZoom - currentZoom) * 0.2;
+    updateCameraPosition();
+}
+
+canvas3d.addEventListener('mousedown', onPointerStart);
+window.addEventListener('mousemove', onPointerMove);
+window.addEventListener('mouseup', onPointerEnd);
+canvas3d.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) onPointerStart(e);
+    else if (e.touches.length === 2) onTouchStart(e);
+});
+canvas3d.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1) onPointerMove(e);
+    else if (e.touches.length === 2) onTouchMove(e);
+});
+canvas3d.addEventListener('touchend', onPointerEnd);
+canvas3d.addEventListener('wheel', onWheel, { passive: false });
+
+// ========== 音频初始化 ==========
+function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    oscillatorA = audioCtx.createOscillator();
+    oscillatorB = audioCtx.createOscillator();
+    gainNode = audioCtx.createGain();
+    analyser = audioCtx.createAnalyser();
+
+    oscillatorA.type = 'sine';
+    oscillatorB.type = 'sine';
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+    oscillatorA.connect(gainNode);
+    oscillatorB.connect(gainNode);
+    gainNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    oscillatorA.start();
+    oscillatorB.start();
+}
+
+async function startAudio() {
+    if (audioCtx && audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+    }
+}
+
+// ========== 流形扰动 (粒子涟漪) ==========
+function updateManifoldWithRipple() {
+    if (!positionAttribute || !originalPositions) return;
+    const p1 = posA;
+    const p2 = posB;
+    const positions = positionAttribute.array;
+    // 重置到原始位置
+    for (let i = 0; i < vertexCount * 3; i++) {
+        positions[i] = originalPositions[i];
+    }
+    const rippleStrength = 0.25;
+    const soften = 0.5;
+    for (let i = 0; i < vertexCount; i++) {
+        const ix = i * 3, iy = i*3+1, iz = i*3+2;
+        let x = positions[ix], y = positions[iy], z = positions[iz];
+        let totalRipple = 0;
+        const dx1 = x - p1.x, dy1 = y - p1.y, dz1 = z - p1.z;
+        const distSq1 = dx1*dx1 + dy1*dy1 + dz1*dz1 + 1e-6;
+        totalRipple += rippleStrength / (distSq1 + soften);
+        const dx2 = x - p2.x, dy2 = y - p2.y, dz2 = z - p2.z;
+        const distSq2 = dx2*dx2 + dy2*dy2 + dz2*dz2 + 1e-6;
+        totalRipple += rippleStrength / (distSq2 + soften);
+        const len = Math.hypot(x, y, z);
+        if (len > 0.01) {
+            const nx = x / len, ny = y / len, nz = z / len;
+            const shift = totalRipple * 0.4;
+            positions[ix] += nx * shift;
+            positions[iy] += ny * shift;
+            positions[iz] += nz * shift;
+        }
+    }
+    positionAttribute.needsUpdate = true;
+}
+
+// 顶点颜色实时更新 (靠近粒子变红)
+function updateVertexColors() {
+    if (!positionAttribute || !colorAttribute) return;
+    const positions = positionAttribute.array;
+    const colorArray = colorAttribute.array;
+    const radius = 0.45;
+    for (let i = 0; i < vertexCount; i++) {
+        const ix = i * 3, iy = i*3+1, iz = i*3+2;
+        const x = positions[ix], y = positions[iy], z = positions[iz];
+        const dxA = x - posA.x, dyA = y - posA.y, dzA = z - posA.z;
+        const distA = Math.hypot(dxA, dyA, dzA);
+        const dxB = x - posB.x, dyB = y - posB.y, dzB = z - posB.z;
+        const distB = Math.hypot(dxB, dyB, dzB);
+        const minDist = Math.min(distA, distB);
+        let t = Math.min(1, (minDist / radius) ** 4);
+        colorArray[ix] = 1.0;
+        colorArray[iy] = t;
+        colorArray[iz] = 0.0;
+    }
+    colorAttribute.needsUpdate = true;
+}
+
+// ========== 熵计算与绘图 ==========
+function computeEntropy() {
+    if (entropyPoints.length < 10) return 0;
+    const bins = 10;
+    const hist = Array(bins).fill().map(() => Array(bins).fill(0));
+    for (let p of entropyPoints) {
+        const ix = Math.min(bins-1, Math.floor(p.x * bins));
+        const iy = Math.min(bins-1, Math.floor(p.y * bins));
+        hist[ix][iy] += 1;
+    }
+    const total = entropyPoints.length;
+    let entropy = 0;
+    for (let i=0; i<bins; i++) {
+        for (let j=0; j<bins; j++) {
+            if (hist[i][j] > 0) {
+                const p = hist[i][j] / total;
+                entropy -= p * Math.log2(p);
+            }
+        }
+    }
+    return entropy;
+}
+
+function drawAxes(ctx, width, height, xMax, yMax, xTickValues, yTickValues, xLabelFormatter, yLabelFormatter) {
+    ctx.save();
+    ctx.strokeStyle = '#333';
+    ctx.fillStyle = '#888';
+    ctx.font = '8px monospace';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(0, height); ctx.lineTo(width, height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, height); ctx.stroke();
+    for (let v of xTickValues) {
+        const x = (v / xMax) * width;
+        ctx.beginPath(); ctx.moveTo(x, height-3); ctx.lineTo(x, height+3); ctx.stroke();
+        ctx.fillText(xLabelFormatter(v), x-6, height+12);
+    }
+    for (let v of yTickValues) {
+        const y = height - (v / yMax) * height;
+        ctx.beginPath(); ctx.moveTo(-3, y); ctx.lineTo(3, y); ctx.stroke();
+        ctx.fillText(yLabelFormatter(v), 8, y+3);
+    }
+    ctx.restore();
+}
+
+// 波形更新
+function updateWaveform() {
+    if (!analyser || !audioCtx || audioCtx.state !== 'running') return;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(dataArray);
+    for (let i = 0; i < dataArray.length; i += 16) {
+        const v = (dataArray[i] - 128) / 128;
+        waveBuffer.push(v);
+    }
+    while (waveBuffer.length > 700) waveBuffer.shift();
+}
+
+function resizeWaveCanvas() {
+    const waveCanvas = document.getElementById('canvas-wave');
+    const container = document.getElementById('waveform-container');
+    if (!waveCanvas || !container) return;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w > 0 && h > 0 && (waveCanvas.width !== w || waveCanvas.height !== h)) {
+        waveCanvas.width = w;
+        waveCanvas.height = h;
+        waveCanvas.getContext('2d').fillStyle = '#050505';
+        waveCanvas.getContext('2d').fillRect(0, 0, w, h);
+    }
+}
+
+const cloudCanvas = document.getElementById('canvas-cloud');
+const cloudCtx = cloudCanvas.getContext('2d');
+const entropyCanvas = document.getElementById('canvas-entropy');
+const entropyCtx = entropyCanvas.getContext('2d');
+const waveCanvas = document.getElementById('canvas-wave');
+const waveCtx = waveCanvas.getContext('2d');
+
+function drawAnalytics() {
+    resizeWaveCanvas();
+    // 云图
+    cloudCtx.fillStyle = '#080808';
+    cloudCtx.fillRect(0, 0, cloudCanvas.width, cloudCanvas.height);
+    cloudCtx.fillStyle = '#0ff';
+    for (let p of entropyPoints) {
+        cloudCtx.fillRect(p.x * cloudCanvas.width, p.y * cloudCanvas.height, 1, 1);
+    }
+    drawAxes(cloudCtx, cloudCanvas.width, cloudCanvas.height, 1, 1, [0,0.5,1], [0,0.5,1], v=>v.toFixed(1), v=>v.toFixed(1));
+    // 熵曲线
+    const currentEntropy = computeEntropy();
+    entropyHistory.push(currentEntropy);
+    if (entropyHistory.length > 200) entropyHistory.shift();
+    const yMax = 7.0;
+    entropyCtx.fillStyle = '#080808';
+    entropyCtx.fillRect(0, 0, entropyCanvas.width, entropyCanvas.height);
+    entropyCtx.strokeStyle = '#ff0';
+    entropyCtx.lineWidth = 1.2;
+    entropyCtx.beginPath();
+    const step = entropyCanvas.width / Math.max(1, entropyHistory.length-1);
+    for (let i=0; i<entropyHistory.length; i++) {
+        const x = i * step;
+        const y = entropyCanvas.height - (Math.min(entropyHistory[i], yMax)/yMax)*entropyCanvas.height;
+        if(i===0) entropyCtx.moveTo(x,y); else entropyCtx.lineTo(x,y);
+    }
+    entropyCtx.stroke();
+    drawAxes(entropyCtx, entropyCanvas.width, entropyCanvas.height, entropyHistory.length-1, yMax,
+             [0, Math.floor(entropyHistory.length/2), entropyHistory.length-1], [0,2,4,6,7], v=>v, v=>v.toFixed(1));
+    // 波形
+    updateWaveform();
+    if (waveBuffer.length > 1 && waveCanvas.width>0 && waveCanvas.height>0) {
+        waveCtx.fillStyle = '#050505';
+        waveCtx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
+        waveCtx.strokeStyle = '#ff0';
+        waveCtx.lineWidth = 1.5;
+        waveCtx.beginPath();
+        const stepX = waveCanvas.width / (waveBuffer.length-1);
+        for(let i=0;i<waveBuffer.length;i++) {
+            const x = i*stepX;
+            const y = waveCanvas.height/2 * (1 - waveBuffer[i]);
+            if(i===0) waveCtx.moveTo(x,y); else waveCtx.lineTo(x,y);
+        }
+        waveCtx.stroke();
+    }
+    // 仪表盘
+    const status = started ? (paused ? "PAUSED" : "RUNNING") : "INIT";
+    const freqDisplay = Math.round(180 + Math.abs(velA.length() * 70));
+    const azimuth = (manifoldMesh ? (manifoldMesh.rotation.y * 180 / Math.PI).toFixed(1) : "0.0");
+    document.getElementById('info').innerHTML = `
+[ 11D MANIFOLD OBSERVATORY ]<br>
+-----------------------------<br>
+SYS STATUS     : ${status}<br>
+MANIFOLD TYPE  : ${currentManifoldType}<br>
+TIME STEP      : ${effectiveT}<br>
+GEOMETRY R     : ${currentR.toFixed(4)}<br>
+G-CONSTANT     : ${gravityConst.toFixed(5)}<br>
+AUDIO FREQ     : ${freqDisplay} Hz<br>
+RANDOM ENTROPY : ${microPerturb.toFixed(6)}<br>
+VIEWPORT :<br>
+  DISTANCE : ${currentZoom.toFixed(1)}<br>
+  AZIMUTH  : ${azimuth}°<br>
+    `;
+    document.getElementById('hex-stream').innerHTML = `>>> ALETHEIA_ECHO: ${lastHash.substring(0,32)}... | μ: ${microPerturb.toFixed(5)} | H: ${currentEntropy.toFixed(4)} bits | 流形: ${currentManifoldType}`;
+}
+
+// ========== 混沌物理引擎 ==========
+async function aletheiaEngine() {
+    const raw = posA.x.toString() + posA.y.toString() + velB.z.toString();
+    const msgUint8 = new TextEncoder().encode(raw);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    lastHash = hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+    const ux = hashArray[0]/255, uy = hashArray[1]/255;
+    entropyPoints.push({x:ux, y:uy});
+    if(entropyPoints.length>500) entropyPoints.shift();
+    const entropyVal = parseInt(lastHash.slice(-8),16)/0xFFFFFFFF;
+    microPerturb = (entropyVal-0.5)*0.05;
+    gravityConst = -4.2 + microPerturb*2.0;
+    cyStrength = 1.35 + microPerturb*1.2;
+    memoryStrength = 0.08 + Math.abs(microPerturb)*0.1;
+    const chaosModA = Math.sin(posA.x*6)*Math.cos(posA.y*6)*Math.sin(posA.z*6);
+    const chaosModB = Math.sin(posB.x*6)*Math.cos(posB.y*6)*Math.sin(posB.z*6);
+    let freqA = 180 + Math.abs(velA.length()*70)*(1+0.6*chaosModA);
+    let freqB = 180 + Math.abs(velB.length()*70)*(1+0.6*chaosModB);
+    freqA = Math.min(1300, Math.max(70, freqA));
+    freqB = Math.min(1300, Math.max(70, freqB));
+    const jitter = (hashArray[31]/255-0.5)*30;
+    if(oscillatorA) {
+        oscillatorA.frequency.setTargetAtTime(freqA + jitter, audioCtx.currentTime, 0.05);
+        oscillatorB.frequency.setTargetAtTime(freqB - jitter, audioCtx.currentTime, 0.05);
+    }
+}
+
+function physicalStep() {
+    effectiveT++;
+    currentR = r0 + breathAmp * Math.sin(breathOmega * effectiveT * 0.1);
+    if(manifoldMesh) manifoldMesh.scale.setScalar(currentR / 1.6);
+    const particles = [
+        {p: posA, v: velA, path: pathA},
+        {p: posB, v: velB, path: pathB}
+    ];
+    particles.forEach(obj => {
+        const r = obj.p.length() + 1e-9;
+        const f_macro = obj.p.clone().multiplyScalar(gravityConst / Math.pow(r, 2.9));
+        const tMod = effectiveT * 0.008;
+        const cy_x = Math.sin(7*obj.p.x)+0.3*Math.sin(13*obj.p.y);
+        const cy_y = Math.cos(7*obj.p.y)+0.3*Math.cos(13*obj.p.z);
+        const cy_z = Math.sin(7*obj.p.z+Math.cos(obj.p.x))+0.3*Math.sin(11*obj.p.x);
+        let f_cy = new THREE.Vector3(cy_x, cy_y, cy_z);
+        const timeMod = 1+0.6*Math.sin(tMod);
+        f_cy.multiplyScalar(cyStrength * timeMod);
+        let memoryForce = new THREE.Vector3(0,0,0);
+        if(obj.path.length > 15) {
+            let avgPos = new THREE.Vector3(0,0,0);
+            const start = Math.max(0, obj.path.length-25);
+            for(let i=start;i<obj.path.length;i++) avgPos.add(obj.path[i]);
+            avgPos.divideScalar(obj.path.length-start);
+            memoryForce = avgPos.clone().sub(obj.p).multiplyScalar(memoryStrength);
+        }
+        const totalForce = f_macro.add(f_cy).add(memoryForce);
+        obj.v.add(totalForce.multiplyScalar(0.0075));
+        obj.p.add(obj.v.clone().multiplyScalar(0.0075));
+        obj.path.push(obj.p.clone());
+        if(obj.path.length>200) obj.path.shift();
+    });
+    [velA, velB].forEach(v => { if(v.length()>14) v.multiplyScalar(14/v.length()); });
+    geoA.setFromPoints(pathA);
+    geoB.setFromPoints(pathB);
+    if(manifoldMesh) manifoldMesh.rotation.y += 0.008;
+    if(effectiveT % 3 === 0) updateManifoldWithRipple();
+    updateVertexColors();
+}
+
+// 后台支持
+let animationFrameId = null, backgroundIntervalId = null, isPageVisible = true;
+function runForeground() {
+    if (!started) return;
+    if (!paused) { physicalStep(); aletheiaEngine(); } else { updateVertexColors(); updateWaveform(); }
+    drawAnalytics();
+    renderer.render(scene, camera);
+    animationFrameId = requestAnimationFrame(runForeground);
+}
+function runBackground() {
+    if (!started) return;
+    if (!paused) { physicalStep(); aletheiaEngine(); drawAnalytics(); } else { updateVertexColors(); updateWaveform(); drawAnalytics(); }
+}
+function onVisibilityChange() {
+    isPageVisible = !document.hidden;
+    if (!started) return;
+    if (isPageVisible) {
+        if(backgroundIntervalId) clearInterval(backgroundIntervalId);
+        if(animationFrameId) cancelAnimationFrame(animationFrameId);
+        animationFrameId = requestAnimationFrame(runForeground);
+    } else {
+        if(animationFrameId) cancelAnimationFrame(animationFrameId);
+        if(backgroundIntervalId) clearInterval(backgroundIntervalId);
+        backgroundIntervalId = setInterval(runBackground, 33);
+    }
+}
+function startBackgroundSupport() {
+    if(started) { onVisibilityChange(); document.addEventListener('visibilitychange', onVisibilityChange); }
+}
+
+// ========== 启动入口 ==========
+initManifoldWithRandomGeometry();  // 页面加载即随机流形，视觉可见
+
+document.getElementById('overlay').addEventListener('click', async () => {
+    if(!started){
+        initAudio();
+        await startAudio();
+        started = true;
+        paused = false;
+        document.getElementById('overlay').classList.add('hidden');
+        cloudCanvas.width = 160; cloudCanvas.height = 100;
+        entropyCanvas.width = 160; entropyCanvas.height = 100;
+        resizeWaveCanvas();
+        const seed = (Math.random()-0.5)*0.03;
+        gravityConst += seed;
+        cyStrength += seed*0.8;
+        memoryStrength += Math.abs(seed)*0.05;
+        startBackgroundSupport();
+    }
+});
+
+window.addEventListener('resize', () => {
+    const width3d = window.innerWidth-180;
+    const height3d = window.innerHeight*0.6;
+    renderer.setSize(width3d, height3d);
+    camera.aspect = width3d/height3d;
+    camera.updateProjectionMatrix();
+    resizeWaveCanvas();
+});
+</script>
+</body>
+</html>
