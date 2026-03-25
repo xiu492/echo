@@ -1,6 +1,5 @@
 # echo
 music
-Acknowledged. Here is the formal technical summary for your GitHub repository in English:
 
 Technical Specification
 1. System Overview
